@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>朝のトークルーレット</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: #f5f4f0; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; }
+  .app { background: white; border-radius: 16px; padding: 2rem; max-width: 540px; width: 100%; box-shadow: 0 2px 16px rgba(0,0,0,.08); }
+  h1 { font-size: 22px; font-weight: 600; color: #1a1a1a; text-align: center; }
+  .sub { font-size: 14px; color: #888; text-align: center; margin-top: 6px; margin-bottom: 1.5rem; }
+
+  /* Drums */
+  .drums { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+  .drum-label { font-size: 12px; color: #888; font-weight: 500; text-align: center; letter-spacing: .05em; margin-bottom: 6px; }
+  .drum-win { position: relative; overflow: hidden; height: 192px; border-radius: 10px; border: 1px solid #e8e8e8; background: #fff; }
+  .drum-inner { position: absolute; width: 100%; top: 0; will-change: transform; }
+  .drum-item { height: 64px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 500; color: #1a1a1a; padding: 0 10px; text-align: center; line-height: 1.3; word-break: break-all; }
+  .hl-box { position: absolute; top: 64px; left: 4px; right: 4px; height: 64px; border: 2px solid #D85A30; border-radius: 6px; pointer-events: none; z-index: 3; }
+  .drum-win::before, .drum-win::after { content: ''; position: absolute; left: 0; right: 0; height: 64px; background: #f5f4f0; opacity: .6; z-index: 2; pointer-events: none; }
+  .drum-win::before { top: 0; } .drum-win::after { bottom: 0; }
+
+  /* Result & Spin */
+  .result { text-align: center; min-height: 30px; font-size: 14px; color: #555; margin-bottom: 1.25rem; transition: opacity .3s; line-height: 1.6; }
+  .spin-btn { display: block; width: 100%; background: #D85A30; color: white; border: none; border-radius: 10px; padding: 14px; font-size: 18px; font-weight: 600; cursor: pointer; letter-spacing: .02em; transition: opacity .15s; margin-bottom: 1.25rem; font-family: inherit; }
+  .spin-btn:hover { opacity: .88; } .spin-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* Sheet sync bar */
+  .sync-bar { display: flex; align-items: center; gap: 8px; background: #f9f8f5; border-radius: 10px; padding: 10px 14px; margin-bottom: 1.25rem; border: 1px solid #eee; }
+  .sync-bar .label { font-size: 13px; color: #888; flex: 1; min-width: 0; }
+  .sync-bar .label strong { color: #1a1a1a; font-weight: 500; }
+  .sync-btn { background: none; border: 1px solid #ddd; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; color: #555; white-space: nowrap; font-family: inherit; flex-shrink: 0; display: flex; align-items: center; gap: 5px; transition: background .1s; }
+  .sync-btn:hover { background: white; }
+  .sync-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 1.5px solid #ccc; border-top-color: #D85A30; border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Error */
+  .err-box { background: #FAECE7; border: 1px solid #F0997B; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #7a2e10; line-height: 1.7; margin-bottom: 1rem; }
+  .err-box a { color: #D85A30; }
+  .err-box code { background: rgba(0,0,0,.07); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+
+  /* Divider */
+  .divider { border: none; border-top: 1px solid #eee; margin: 1rem 0; }
+
+  /* Settings */
+  .settings-toggle { display: flex; gap: 8px; justify-content: center; margin-bottom: 1rem; }
+  .tog-btn { background: none; border: 1px solid #ddd; border-radius: 8px; padding: 6px 16px; font-size: 13px; cursor: pointer; color: #666; font-family: inherit; }
+  .tog-btn:hover { background: #f5f4f0; }
+  .panel { display: none; background: #f9f8f5; border-radius: 10px; padding: 1rem; margin-bottom: 8px; border: 1px solid #eee; }
+  .panel-title { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-bottom: 10px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; min-height: 10px; }
+  .tag { display: inline-flex; align-items: center; gap: 3px; background: white; border: 1px solid #e0e0e0; border-radius: 20px; padding: 4px 8px 4px 12px; font-size: 13px; color: #333; }
+  .x { background: none; border: none; cursor: pointer; color: #bbb; font-size: 14px; line-height: 1; padding: 0 2px; font-family: inherit; }
+  .x:hover { color: #D85A30; }
+  .add-row { display: flex; gap: 8px; }
+  .add-row input { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 7px 10px; font-size: 13px; background: white; color: #1a1a1a; font-family: inherit; outline: none; min-width: 0; }
+  .add-row input:focus { border-color: #D85A30; }
+  .add-row button { background: none; border: 1px solid #ddd; border-radius: 8px; padding: 7px 14px; font-size: 13px; cursor: pointer; color: #666; white-space: nowrap; font-family: inherit; }
+  .add-row button:hover { background: white; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>朝のトークルーレット</h1>
+  <p class="sub">話す人とテーマをランダムに決めよう！</p>
+
+  <div class="drums">
+    <div>
+      <div class="drum-label">話す人</div>
+      <div class="drum-win"><div class="drum-inner" id="sd"></div><div class="hl-box"></div></div>
+    </div>
+    <div>
+      <div class="drum-label">テーマ</div>
+      <div class="drum-win"><div class="drum-inner" id="td"></div><div class="hl-box"></div></div>
+    </div>
+  </div>
+
+  <div class="result" id="res"></div>
+  <button class="spin-btn" id="spin-btn" onclick="doSpin()">スピン！</button>
+
+  <div class="sync-bar">
+    <div class="label" id="sync-label"><strong>スプレッドシート</strong>からデータ取得中...</div>
+    <button class="sync-btn" id="sync-btn" onclick="loadFromSheet()" disabled>
+      <span id="sync-icon">↻</span> 再読み込み
+    </button>
+  </div>
+
+  <div id="err-area"></div>
+
+  <hr class="divider">
+
+  <div class="settings-toggle">
+    <button class="tog-btn" onclick="tog('sp')">メンバー編集</button>
+    <button class="tog-btn" onclick="tog('th')">テーマ編集</button>
+  </div>
+
+  <div class="panel" id="sp-panel">
+    <div class="panel-title">メンバー（手動編集）</div>
+    <div class="tags" id="sp-list"></div>
+    <div class="add-row">
+      <input type="text" id="new-sp" placeholder="名前を追加..." onkeydown="if(event.key==='Enter')addItem('sp')">
+      <button onclick="addItem('sp')">追加</button>
+    </div>
+  </div>
+
+  <div class="panel" id="th-panel">
+    <div class="panel-title">テーマ（手動編集）</div>
+    <div class="tags" id="th-list"></div>
+    <div class="add-row">
+      <input type="text" id="new-th" placeholder="テーマを追加..." onkeydown="if(event.key==='Enter')addItem('th')">
+      <button onclick="addItem('th')">追加</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = '1EaXw16pOCkGoya_c3FKUNKMgXuQxvtOMEvenBAv_qnk';
+const IH = 64;
+let speakers = [], themes = [], busy = false;
+
+function csvUrl(sheet) {
+  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
+}
+
+function parseCSV(text) {
+  return text.split('\n').slice(1)
+    .map(row => row.trim().replace(/^"|"$/g, '').replace(/""/g, '"'))
+    .filter(v => v);
+}
+
+async function loadFromSheet() {
+  const label = document.getElementById('sync-label');
+  const btn = document.getElementById('sync-btn');
+  const icon = document.getElementById('sync-icon');
+  const errArea = document.getElementById('err-area');
+  errArea.innerHTML = '';
+  btn.disabled = true;
+  icon.outerHTML = '<span id="sync-icon" class="spinner"></span>';
+
+  try {
+    const [r1, r2] = await Promise.all([
+      fetch(csvUrl('メンバー')),
+      fetch(csvUrl('テーマ'))
+    ]);
+    if (!r1.ok || !r2.ok) throw new Error('シートが見つかりません');
+    const [t1, t2] = await Promise.all([r1.text(), r2.text()]);
+    const sp = parseCSV(t1);
+    const th = parseCSV(t2);
+    if (sp.length === 0 || th.length === 0) throw new Error('データが空です。シート名・列の確認をしてください。');
+    speakers = sp;
+    themes = th;
+    initDrums();
+    label.innerHTML = `<strong>メンバー ${speakers.length}人 / テーマ ${themes.length}件</strong>　読み込み完了`;
+    renderList('sp'); renderList('th');
+  } catch (e) {
+    label.textContent = '読み込みに失敗しました';
+    errArea.innerHTML = `<div class="err-box">
+      <strong>スプレッドシートを読み込めませんでした</strong><br>
+      スプレッドシートの共有設定を確認してください：<br>
+      <a href="https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit" target="_blank">スプレッドシートを開く</a>
+      → 右上「共有」→「リンクを知っている全員」→「閲覧者」に変更<br><br>
+      シート名が <code>メンバー</code>・<code>テーマ</code> になっているか確認してください。
+    </div>`;
+  } finally {
+    document.getElementById('sync-icon') && (document.getElementById('sync-icon').outerHTML = '<span id="sync-icon">↻</span>');
+    document.getElementById('sync-btn').disabled = false;
+  }
+}
+
+function buildDrum(id, items) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  el.style.transition = 'none';
+  el.style.transform = 'translateY(0)';
+  for (let r = 0; r < 40; r++) items.forEach(t => {
+    const d = document.createElement('div');
+    d.className = 'drum-item'; d.textContent = t;
+    el.appendChild(d);
+  });
+}
+
+function initDrums() {
+  if (speakers.length === 0 || themes.length === 0) return;
+  buildDrum('sd', speakers);
+  buildDrum('td', themes);
+  document.getElementById('res').textContent = '';
+}
+
+function spinDrum(id, items, winIdx, delay, dur) {
+  return new Promise(res => {
+    const el = document.getElementById(id);
+    const ty = -((18 * items.length + winIdx - 1) * IH);
+    el.style.transition = 'none'; el.style.transform = 'translateY(0)'; el.offsetHeight;
+    setTimeout(() => {
+      el.style.transition = `transform ${dur}ms cubic-bezier(0.05, 0.9, 0.1, 1)`;
+      el.style.transform = `translateY(${ty}px)`;
+      setTimeout(res, dur);
+    }, delay);
+  });
+}
+
+async function doSpin() {
+  if (busy || speakers.length < 1 || themes.length < 1) return;
+  busy = true;
+  const btn = document.getElementById('spin-btn');
+  btn.disabled = true; btn.textContent = 'スピン中...';
+  document.getElementById('res').style.opacity = '0';
+  const si = Math.floor(Math.random() * speakers.length);
+  const ti = Math.floor(Math.random() * themes.length);
+  initDrums();
+  await Promise.all([spinDrum('sd', speakers, si, 0, 2800), spinDrum('td', themes, ti, 180, 3300)]);
+  const r = document.getElementById('res');
+  r.innerHTML = `<strong style="color:#1a1a1a">${speakers[si]}</strong> さんが <strong style="color:#D85A30">${themes[ti]}</strong> について話します！`;
+  r.style.opacity = '1';
+  btn.disabled = false; btn.textContent = 'スピン！'; busy = false;
+}
+
+function tog(w) {
+  const p = document.getElementById(w + '-panel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function renderList(w) {
+  const items = w === 'sp' ? speakers : themes;
+  const el = document.getElementById(w + '-list');
+  el.innerHTML = '';
+  items.forEach((t, i) => {
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.innerHTML = `${t}<button class="x" onclick="removeItem('${w}',${i})">&#xD7;</button>`;
+    el.appendChild(tag);
+  });
+}
+
+function addItem(w) {
+  const inp = document.getElementById('new-' + w);
+  const v = inp.value.trim(); if (!v) return;
+  if (w === 'sp') speakers.push(v); else themes.push(v);
+  inp.value = ''; renderList(w); initDrums();
+}
+
+function removeItem(w, i) {
+  if (w === 'sp') speakers.splice(i, 1); else themes.splice(i, 1);
+  renderList(w); initDrums();
+}
+
+loadFromSheet();
+</script>
+</body>
+</html>
